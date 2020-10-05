@@ -23,7 +23,7 @@
 -export([ start/0
         , stop/0
         , connect/1
-        , connect/2
+        , connect/3
         , wait_for_connection_up/1
         , close_connection/1
         , push_notification/3
@@ -77,10 +77,10 @@ stop() ->
   ok.
 
 %% @doc Connects to APNs service with Provider Certificate or Token
--spec connect( apns_connection:type(), apns_connection:name()) ->
+-spec connect( apns_connection:type(), apns_connection:name(), binary()) ->
   {ok, pid()}.
-connect(Type, ConnectionName) ->
-  DefaultConnection = apns_connection:default_connection(Type, ConnectionName),
+connect(Type, ConnectionName, ProjectName) ->
+  DefaultConnection = apns_connection:default_connection(Type, ConnectionName, ProjectName),
   connect(DefaultConnection).
 
 %% @doc Connects to APNs service

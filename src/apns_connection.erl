@@ -22,81 +22,82 @@
 -behaviour(gen_statem).
 
 %% API
--export([ start_link/2
-        , default_connection/3
-        , name/1
-        , host/1
-        , port/1
-        , certdata/1
-        , certfile/1
-        , keydata/1
-        , keyfile/1
-        , type/1
-        , gun_pid/1
-        , close_connection/1
-        , push_notification/4
-        , push_notification/5
-        , wait_apns_connection_up/1
-        ]).
+-export([start_link/2
+  , default_connection/3
+  , name/1
+  , host/1
+  , port/1
+  , certdata/1
+  , certfile/1
+  , keydata/1
+  , keyfile/1
+  , type/1
+  , gun_pid/1
+  , close_connection/1
+  , push_notification/4
+  , push_notification/5
+  , wait_apns_connection_up/1
+]).
 
 %% gen_statem callbacks
--export([ init/1
-        , callback_mode/0
-        , open_connection/3
-        , open_origin/3
-        , open_proxy/3
-        , open_common/3
-        , await_up/3
-        , proxy_connect_to_origin/3
-        , await_tunnel_up/3
-        , connected/3
-        , down/3
-        , code_change/4
-        ]).
+-export([init/1
+  , callback_mode/0
+  , open_connection/3
+  , open_origin/3
+  , open_proxy/3
+  , open_common/3
+  , await_up/3
+  , proxy_connect_to_origin/3
+  , await_tunnel_up/3
+  , connected/3
+  , down/3
+  , code_change/4
+]).
 
--export_type([ name/0
-             , host/0
-             , port/0
-             , path/0
-             , connection/0
-             , notification/0
-             , type/0
-             ]).
+-export_type([name/0
+  , host/0
+  , port/0
+  , path/0
+  , connection/0
+  , notification/0
+  , type/0
+]).
 
--type name()         :: atom().
--type host()         :: string() | inet:ip_address().
--type path()         :: string().
+-type name() :: atom().
+-type host() :: string() | inet:ip_address().
+-type path() :: string().
 -type notification() :: binary().
--type type()         :: certdata | cert | token.
--type keydata()      :: {'RSAPrivateKey' | 'DSAPrivateKey' | 'ECPrivateKey' |
-                         'PrivateKeyInfo'
-                        , binary()}.
--type proxy_info()   :: #{ type       := connect
-                         , host       := host()
-                         , port       := inet:port_number()
-                         , username   => iodata()
-                         , password   => iodata()
-                         }.
--type connection()   :: #{ name       := name()
-                         , apple_host := host()
-                         , apple_port := inet:port_number()
-                         , certdata   => binary()
-                         , certfile   => path()
-                         , keydata    => keydata()
-                         , keyfile    => path()
-                         , timeout    => integer()
-                         , type       := type()
-                         , proxy_info => proxy_info()
-                         }.
+-type type() :: certdata | cert | token.
+-type keydata() :: {'RSAPrivateKey' | 'DSAPrivateKey' | 'ECPrivateKey' |
+'PrivateKeyInfo'
+  , binary()}.
+-type proxy_info() :: #{type := connect
+, host := host()
+, port := inet:port_number()
+, username => iodata()
+, password => iodata()
+}.
+-type connection() :: #{name := name()
+, apple_host := host()
+, apple_port := inet:port_number()
+, certdata => binary()
+, certfile => path()
+, keydata => keydata()
+, keyfile => path()
+, timeout => integer()
+, type := type()
+, proxy_info => proxy_info()
+, project_config => map()
+}.
 
--type state()        :: #{ connection      := connection()
-                         , gun_pid         => pid()
-                         , gun_monitor     => reference()
-                         , gun_connect_ref => reference()
-                         , client          := pid()
-                         , backoff         := non_neg_integer()
-                         , backoff_ceiling := non_neg_integer()
-                         }.
+-type state() :: #{connection := connection()
+, gun_pid => pid()
+, gun_monitor => reference()
+, gun_connect_ref => reference()
+, client := pid()
+, backoff := non_neg_integer()
+, backoff_ceiling := non_neg_integer()
+}.
 
 %%%===================================================================
 %%% API
@@ -121,13 +122,14 @@ default_connection(certdata, ConnectionName, ProjectName) ->
   Key = maps:get(keydata, Config),
   Timeout = maps:get(timeout, Config),
 
-  #{ name       => ConnectionName
-   , apple_host => Host
-   , apple_port => Port
-   , certdata   => Cert
-   , keydata    => Key
-   , timeout    => Timeout
-   , type       => certdata
+  #{name => ConnectionName
+    , apple_host => Host
+    , apple_port => Port
+    , certdata => Cert
+    , keydata => Key
+    , timeout => Timeout
+    , type => certdata
+    , project_config => Config
   };
 default_connection(cert, ConnectionName, ProjectName) ->
   {ok, Config} = application:get_env(apns, ProjectName),
@@ -137,13 +139,15 @@ default_connection(cert, ConnectionName, ProjectName) ->
   Keyfile = maps:get(keyfile, Config),
   Timeout = maps:get(timeout, Config),
 
-  #{ name       => ConnectionName
-   , apple_host => Host
-   , apple_port => Port
-   , certfile   => Certfile
-   , keyfile    => Keyfile
-   , timeout    => Timeout
-   , type       => cert
+
+  #{name => ConnectionName
+    , apple_host => Host
+    , apple_port => Port
+    , certfile => Certfile
+    , keyfile => Keyfile
+    , timeout => Timeout
+    , type => cert
+    , project_config => Config
   };
 default_connection(token, ConnectionName, ProjectName) ->
   {ok, Config} = application:get_env(apns, ProjectName),
@@ -151,11 +155,12 @@ default_connection(token, ConnectionName, ProjectName) ->
   Port = maps:get(apple_port, Config),
   Timeout = maps:get(timeout, Config),
 
-  #{ name       => ConnectionName
-   , apple_host => Host
-   , apple_port => Port
-   , timeout    => Timeout
-   , type       => token
+  #{name => ConnectionName
+    , apple_host => Host
+    , apple_port => Port
+    , timeout => Timeout
+    , type => token
+    , project_config => Config
   }.
 
 %% @doc Close the connection with APNs gracefully
@@ -169,19 +174,19 @@ gun_pid(ConnectionId) ->
   gen_statem:call(ConnectionId, gun_pid).
 
 %% @doc Pushes notification to certificate APNs connection.
--spec push_notification( name() | pid()
-                       , apns:device_id()
-                       , notification()
-                       , apns:headers()) -> apns:response() | {error, not_connection_owner}.
+-spec push_notification(name() | pid()
+    , apns:device_id()
+    , notification()
+    , apns:headers()) -> apns:response() | {error, not_connection_owner}.
 push_notification(ConnectionId, DeviceId, Notification, Headers) ->
   gen_statem:call(ConnectionId, {push_notification, DeviceId, Notification, Headers}).
 
 %% @doc Pushes notification to certificate APNs connection.
--spec push_notification( name() | pid()
-                       , apns:token()
-                       , apns:device_id()
-                       , notification()
-                       , apns:headers()) -> apns:response() | {error, not_connection_owner}.
+-spec push_notification(name() | pid()
+    , apns:token()
+    , apns:device_id()
+    , notification()
+    , apns:headers()) -> apns:response() | {error, not_connection_owner}.
 push_notification(ConnectionId, Token, DeviceId, Notification, Headers) ->
   gen_statem:call(ConnectionId, {push_notification, Token, DeviceId, Notification, Headers}).
 
@@ -202,26 +207,26 @@ wait_apns_connection_up(Server) ->
 callback_mode() -> state_functions.
 
 -spec init({connection(), pid()})
-  -> { ok
-     , open_connection
-     , State :: state()
-     , {next_event, internal, init}
-     }.
+      -> {ok
+      , open_connection
+      , State :: state()
+      , {next_event, internal, init}
+    }.
 init({Connection, Client}) ->
-  StateData = #{ connection      => Connection
-               , client          => Client
-               , backoff         => 1
-               , backoff_ceiling => application:get_env(apns, backoff_ceiling, 10)
-               },
+  StateData = #{connection => Connection
+    , client => Client
+    , backoff => 1
+    , backoff_ceiling => application:get_env(apns, backoff_ceiling, 10)
+  },
   {ok, open_connection, StateData,
     {next_event, internal, init}}.
 
 -spec open_connection(_, _, _) -> _.
 open_connection(internal, _, #{connection := Connection} = StateData) ->
   NextState = case proxy(Connection) of
-    #{type := connect} -> open_proxy;
-    undefined          -> open_origin
-  end,
+                #{type := connect} -> open_proxy;
+                undefined -> open_origin
+              end,
   {next_state, NextState, StateData,
     {next_event, internal, init}}.
 
@@ -231,24 +236,24 @@ open_origin(internal, _, #{connection := Connection} = StateData) ->
   Port = port(Connection),
   TransportOpts = transport_opts(Connection),
   {next_state, open_common, StateData,
-    {next_event, internal, { Host
-                           , Port
-                           , #{ protocols      => [http2]
-                              , transport_opts => TransportOpts
-                              , retry          => 0
-                              }}}}.
+    {next_event, internal, {Host
+      , Port
+      , #{protocols => [http2]
+        , transport_opts => TransportOpts
+        , retry => 0
+      }}}}.
 
 -spec open_proxy(_, _, _) -> _.
 open_proxy(internal, _, StateData) ->
   #{connection := Connection} = StateData,
   #{type := connect, host := ProxyHost, port := ProxyPort} = proxy(Connection),
   {next_state, open_common, StateData,
-    {next_event, internal, { ProxyHost
-                           , ProxyPort
-                           , #{ protocols => [http]
-                              , transport => tcp
-                              , retry     => 0
-                              }}}}.
+    {next_event, internal, {ProxyHost
+      , ProxyPort
+      , #{protocols => [http]
+        , transport => tcp
+        , retry => 0
+      }}}}.
 
 %% This function exists only to make Elvis happy.
 %% I do not think it makes things any easier to read.
@@ -264,9 +269,9 @@ open_common(internal, {Host, Port, Opts}, StateData) ->
 await_up(info, {gun_up, GunPid, Protocol}, #{gun_pid := GunPid} = StateData) ->
   #{connection := Connection} = StateData,
   NextState = case proxy(Connection) of
-    #{type := connect} when Protocol =:= http -> proxy_connect_to_origin;
-    undefined when Protocol =:= http2 -> connected
-  end,
+                #{type := connect} when Protocol =:= http -> proxy_connect_to_origin;
+                undefined when Protocol =:= http2 -> connected
+              end,
   {next_state, NextState, StateData,
     {next_event, internal, on_connect}};
 await_up(EventType, EventContent, StateData) ->
@@ -278,26 +283,26 @@ proxy_connect_to_origin(internal, on_connect, StateData) ->
   Host = host(Connection),
   Port = port(Connection),
   TransportOpts = transport_opts(Connection),
-  Destination0 = #{ host => Host
-                  , port => Port
-                  , protocol => http2
-                  , transport => tls
-                  , tls_opts => TransportOpts
-                  },
+  Destination0 = #{host => Host
+    , port => Port
+    , protocol => http2
+    , transport => tls
+    , tls_opts => TransportOpts
+  },
   Destination = case proxy(Connection) of
-    #{ username := Username, password := Password } ->
-      Destination0#{ username => Username, password => Password };
-    _ ->
-      Destination0
-  end,
+                  #{username := Username, password := Password} ->
+                    Destination0#{username => Username, password => Password};
+                  _ ->
+                    Destination0
+                end,
   ConnectRef = gun:connect(GunPid, Destination),
   {next_state, await_tunnel_up, StateData#{gun_connect_ref => ConnectRef},
     {state_timeout, 30000, proxy_connect_timeout}}.
 
 -spec await_tunnel_up(_, _, _) -> _.
-await_tunnel_up( info
-               , {gun_response, GunPid, ConnectRef, fin, 200, _}
-               , #{gun_pid := GunPid, gun_connect_ref := ConnectRef} = StateData) ->
+await_tunnel_up(info
+    , {gun_response, GunPid, ConnectRef, fin, 200, _}
+    , #{gun_pid := GunPid, gun_connect_ref := ConnectRef} = StateData) ->
   {next_state, connected, StateData,
     {next_event, internal, on_connect}};
 await_tunnel_up(EventType, EventContent, StateData) ->
@@ -307,16 +312,16 @@ await_tunnel_up(EventType, EventContent, StateData) ->
 connected(internal, on_connect, #{client := Client}) ->
   Client ! {connection_up, self()},
   keep_state_and_data;
-connected( {call, {Client, _} = From}
-         , {push_notification, DeviceId, Notification, Headers}
-         , #{client := Client} = StateData) ->
+connected({call, {Client, _} = From}
+    , {push_notification, DeviceId, Notification, Headers}
+    , #{client := Client} = StateData) ->
   #{connection := Connection, gun_pid := GunPid} = StateData,
   #{timeout := Timeout} = Connection,
   Response = push(GunPid, DeviceId, Headers, Notification, Timeout),
   {keep_state_and_data, {reply, From, Response}};
-connected( {call, {Client, _} = From}
-         , {push_notification, Token, DeviceId, Notification, Headers0}
-         , #{client := Client} = StateData) ->
+connected({call, {Client, _} = From}
+    , {push_notification, Token, DeviceId, Notification, Headers0}
+    , #{client := Client} = StateData) ->
   #{connection := Connection, gun_pid := GunConn} = StateData,
   #{timeout := Timeout} = Connection,
   Headers = add_authorization_header(Headers0, Token),
@@ -334,12 +339,12 @@ connected(EventType, EventContent, StateData) ->
 -spec down(_, _, _) -> _.
 down(internal
     , _
-    , #{ gun_pid         := GunPid
-       , gun_monitor     := GunMon
-       , client          := Client
-       , backoff         := Backoff
-       , backoff_ceiling := Ceiling
-       }) ->
+    , #{gun_pid := GunPid
+      , gun_monitor := GunMon
+      , client := Client
+      , backoff := Backoff
+      , backoff_ceiling := Ceiling
+    }) ->
   true = demonitor(GunMon, [flush]),
   gun:close(GunPid),
   Client ! {reconnecting, self()},
@@ -356,18 +361,18 @@ handle_common({call, From}, gun_pid, _, #{gun_pid := GunPid}, _) ->
   {keep_state_and_data, {reply, From, GunPid}};
 handle_common(cast, stop, _, _, _) ->
   {stop, normal};
-handle_common( info
-             , {'DOWN', GunMon, process, GunPid, Reason}
-             , StateName
-             , #{gun_pid := GunPid, gun_monitor := GunMon} = StateData
-             , _) ->
+handle_common(info
+    , {'DOWN', GunMon, process, GunPid, Reason}
+    , StateName
+    , #{gun_pid := GunPid, gun_monitor := GunMon} = StateData
+    , _) ->
   {next_state, down, StateData,
     {next_event, internal, {down, StateName, Reason}}};
-handle_common( state_timeout
-             , EventContent
-             , StateName
-             , #{gun_pid := GunPid} = StateData
-             , _) ->
+handle_common(state_timeout
+    , EventContent
+    , StateName
+    , #{gun_pid := GunPid} = StateData
+    , _) ->
   gun:close(GunPid),
   {next_state, down, StateData,
     {next_event, internal, {state_timeout, StateName, EventContent}}};
@@ -377,10 +382,10 @@ handle_common(_, _, _, _, drop) ->
   keep_state_and_data.
 
 -spec code_change(OldVsn :: term() | {down, term()}
-                 , StateName
-                 , StateData
-                 , Extra :: term()
-                 ) -> {ok, StateName, StateData}.
+    , StateName
+    , StateData
+    , Extra :: term()
+) -> {ok, StateName, StateData}.
 code_change(_OldVsn, StateName, StateData, _Extra) ->
   {ok, StateName, StateData}.
 
@@ -446,20 +451,20 @@ transport_opts(Connection) ->
 
 -spec get_headers(apns:headers()) -> list().
 get_headers(Headers) ->
-  List = [ {<<"apns-id">>, apns_id}
-         , {<<"apns-expiration">>, apns_expiration}
-         , {<<"apns-priority">>, apns_priority}
-         , {<<"apns-topic">>, apns_topic}
-         , {<<"apns-collapse_id">>, apns_collapse_id}
-         , {<<"apns-push-type">>, apns_push_type}
-         , {<<"authorization">>, apns_auth_token}
-         ],
+  List = [{<<"apns-id">>, apns_id}
+    , {<<"apns-expiration">>, apns_expiration}
+    , {<<"apns-priority">>, apns_priority}
+    , {<<"apns-topic">>, apns_topic}
+    , {<<"apns-collapse_id">>, apns_collapse_id}
+    , {<<"apns-push-type">>, apns_push_type}
+    , {<<"authorization">>, apns_auth_token}
+  ],
   F = fun({ActualHeader, Key}) ->
     case (catch maps:get(Key, Headers)) of
       {'EXIT', {{badkey, Key}, _}} -> [];
       Value -> [{ActualHeader, Value}]
     end
-  end,
+      end,
   lists:flatmap(F, List).
 
 -spec get_device_path(apns:device_id()) -> binary().
@@ -477,13 +482,13 @@ push(GunConn, DeviceId, HeadersMap, Notification, Timeout) ->
   Path = get_device_path(DeviceId),
   StreamRef = gun:post(GunConn, Path, Headers, Notification),
   case gun:await(GunConn, StreamRef, Timeout) of
-      {response, fin, Status, ResponseHeaders} ->
-        {Status, ResponseHeaders, no_body};
-      {response, nofin, Status, ResponseHeaders} ->
-        {ok, Body} = gun:await_body(GunConn, StreamRef, Timeout),
-        DecodedBody = jsx:decode(Body),
-        {Status, ResponseHeaders, DecodedBody};
-      {error, timeout} -> timeout
+    {response, fin, Status, ResponseHeaders} ->
+      {Status, ResponseHeaders, no_body};
+    {response, nofin, Status, ResponseHeaders} ->
+      {ok, Body} = gun:await_body(GunConn, StreamRef, Timeout),
+      DecodedBody = jsx:decode(Body),
+      {Status, ResponseHeaders, DecodedBody};
+    {error, timeout} -> timeout
   end.
 
 -spec backoff(non_neg_integer(), non_neg_integer()) -> non_neg_integer().
