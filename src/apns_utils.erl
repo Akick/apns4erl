@@ -34,11 +34,10 @@
 %% Signs the given binary.
 -spec sign(binary(), string()) -> binary().
 sign(Data, KeyPath) ->
-  Command = "printf '" ++
-            binary_to_list(Data) ++
-            "' | openssl dgst -binary -sha256 -sign " ++ KeyPath ++ " | base64",
-  {0, Result} = apns_os:cmd(Command),
-  strip_b64(list_to_binary(Result)).
+  {ok, PemBin} = file:read_file(KeyPath),
+  [PKey] = public_key:pem_decode(PemBin),
+  Key = public_key:pem_entry_decode(PKey),
+  strip_b64(base64:encode(jwt_ecdsa:signature(Data, 'sha256', Key))).
 
 %% Retrieves the epoch date.
 -spec epoch() -> integer().

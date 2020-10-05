@@ -9,7 +9,8 @@
     stdlib,
     jsx,
     gun,
-    base64url
+    base64url,
+    jwt
   ]},
   {modules, []},
   {mod, {apns_app, []}},

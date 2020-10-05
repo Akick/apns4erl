@@ -23,7 +23,7 @@
 
 %% API
 -export([ start_link/2
-        , default_connection/2
+        , default_connection/3
         , name/1
         , host/1
         , port/1
@@ -112,13 +112,14 @@ start_link(Connection, Client) ->
   gen_statem:start_link({local, Name}, ?MODULE, {Connection, Client}, []).
 
 %% @doc Builds a connection() map from the environment variables.
--spec default_connection(type(), name()) -> connection().
-default_connection(certdata, ConnectionName) ->
-  {ok, Host} = application:get_env(apns, apple_host),
-  {ok, Port} = application:get_env(apns, apple_port),
-  {ok, Cert} = application:get_env(apns, certdata),
-  {ok, Key} = application:get_env(apns, keydata),
-  {ok, Timeout} = application:get_env(apns, timeout),
+-spec default_connection(type(), name(), any()) -> connection().
+default_connection(certdata, ConnectionName, ProjectName) ->
+  {ok, Config} = application:get_env(apns, ProjectName),
+  Host = maps:get(apple_host, Config),
+  Port = maps:get(apple_port, Config),
+  Cert = maps:get(certdata, Config),
+  Key = maps:get(keydata, Config),
+  Timeout = maps:get(timeout, Config),
 
   #{ name       => ConnectionName
    , apple_host => Host
@@ -128,12 +129,13 @@ default_connection(certdata, ConnectionName) ->
    , timeout    => Timeout
    , type       => certdata
   };
-default_connection(cert, ConnectionName) ->
-  {ok, Host} = application:get_env(apns, apple_host),
-  {ok, Port} = application:get_env(apns, apple_port),
-  {ok, Certfile} = application:get_env(apns, certfile),
-  {ok, Keyfile} = application:get_env(apns, keyfile),
-  {ok, Timeout} = application:get_env(apns, timeout),
+default_connection(cert, ConnectionName, ProjectName) ->
+  {ok, Config} = application:get_env(apns, ProjectName),
+  Host = maps:get(apple_host, Config),
+  Port = maps:get(apple_port, Config),
+  Certfile = maps:get(certfile, Config),
+  Keyfile = maps:get(keyfile, Config),
+  Timeout = maps:get(timeout, Config),
 
   #{ name       => ConnectionName
    , apple_host => Host
@@ -143,10 +145,11 @@ default_connection(cert, ConnectionName) ->
    , timeout    => Timeout
    , type       => cert
   };
-default_connection(token, ConnectionName) ->
-  {ok, Host} = application:get_env(apns, apple_host),
-  {ok, Port} = application:get_env(apns, apple_port),
-  {ok, Timeout} = application:get_env(apns, timeout),
+default_connection(token, ConnectionName, ProjectName) ->
+  {ok, Config} = application:get_env(apns, ProjectName),
+  Host = maps:get(apple_host, Config),
+  Port = maps:get(apple_port, Config),
+  Timeout = maps:get(timeout, Config),
 
   #{ name       => ConnectionName
    , apple_host => Host

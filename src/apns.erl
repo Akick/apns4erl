@@ -31,7 +31,6 @@
         , push_notification_token/4
         , push_notification_token/5
         , default_headers/0
-        , generate_token/2
         , generate_token/3
         , get_feedback/0
         , get_feedback/1
@@ -149,13 +148,12 @@ push_notification_token(ConnectionId, Token, DeviceId, JSONMap, Headers) ->
                                    , Notification
                                    , Headers
                                    ).
--spec generate_token(binary(), binary()) -> token().
-generate_token(TeamId, KeyId) ->
-  {ok, KeyPath} = application:get_env(apns, token_keyfile),
-  generate_token(TeamId, KeyId, KeyPath).
-
--spec generate_token(binary(), binary(), string()) -> token().
-generate_token(TeamId, KeyId, KeyPath) ->
+-spec generate_token(binary(), binary(), binary()|list()) -> token().
+generate_token(TeamId, KeyId, ProjectName) when is_binary(ProjectName) ->
+  {ok, Config} = application:get_env(ProjectName),
+  KeyPath = maps:get(token_keyfile, Config),
+  generate_token(TeamId, KeyId, KeyPath);
+generate_token(TeamId, KeyId, KeyPath) when is_list(KeyPath)->
   Algorithm = <<"ES256">>,
   Header = jsx:encode([ {alg, Algorithm}
                       , {typ, <<"JWT">>}
