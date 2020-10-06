@@ -150,6 +150,7 @@ default_connection(cert, ConnectionName, ProjectName) ->
     , project_config => Config
   };
 default_connection(token, ConnectionName, ProjectName) ->
+  lager:info("ProjectName is: ~p", [ProjectName]),
   {ok, Config} = application:get_env(apns, ProjectName),
   Host = maps:get(apple_host, Config),
   Port = maps:get(apple_port, Config),
