@@ -318,7 +318,7 @@ connected({call, {Client, _} = From}
   #{timeout := Timeout} = Connection,
   Response = push(GunPid, DeviceId, Headers, Notification, Timeout),
   {keep_state_and_data, {reply, From, Response}};
-connected({call, {Client, _} = From}
+connected({call, Client = From}
     , {push_notification, Token, DeviceId, Notification, Headers0}
     , #{client := Client} = StateData) ->
   #{connection := Connection, gun_pid := GunConn} = StateData,
