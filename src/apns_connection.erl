@@ -327,7 +327,7 @@ connected({call, Client = From}
   Response = push(GunConn, DeviceId, Headers, Notification, Timeout),
   {keep_state_and_data, {reply, From, Response}};
 connected({call, From}, Event, _) when element(1, Event) =:= push_notification ->
-  {keep_state_and_data, {reply, From, {error, not_connection_owner}}};
+  {keep_state_and_data, {reply, From, {error, not_connection_owner, From}}};
 connected({call, From}, wait_apns_connection_up, _) ->
   {keep_state_and_data, {reply, From, ok}};
 connected({call, From}, Event, _) when Event =/= gun_pid ->
