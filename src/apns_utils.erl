@@ -20,11 +20,11 @@
 -author("Felipe Ripoll <felipe@inakanetworks.com>").
 
 % API
--export([ sign/2
-        , epoch/0
-        , bin_to_hexstr/1
-        , seconds_to_timestamp/1
-        ]).
+-export([sign/2
+  , epoch/0
+  , bin_to_hexstr/1
+  , seconds_to_timestamp/1
+]).
 
 
 %%%===================================================================
@@ -37,7 +37,7 @@ sign(Data, KeyPath) ->
   {ok, PemBin} = file:read_file(KeyPath),
   [PKey] = public_key:pem_decode(PemBin),
   Key = public_key:pem_entry_decode(PKey),
-  strip_b64(base64:encode(jwt_ecdsa:signature(Data, 'sha256', Key))).
+  base64url:encode(jwt_ecdsa:signature(Data, 'sha256', Key)).
 
 %% Retrieves the epoch date.
 -spec epoch() -> integer().
@@ -59,9 +59,3 @@ bin_to_hexstr(Binary) ->
 seconds_to_timestamp(Secs) ->
   Epoch = 62167219200,
   calendar:gregorian_seconds_to_datetime(Secs + Epoch).
-
-
-%% Remove newline and equality characters
--spec strip_b64(binary()) -> binary().
-strip_b64(BS) ->
-  binary:list_to_bin(binary:split(BS, [<<"\n">>, <<"=">>, <<"/">>, <<"+">>], [global])).
