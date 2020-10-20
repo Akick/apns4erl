@@ -64,4 +64,4 @@ seconds_to_timestamp(Secs) ->
 %% Remove newline and equality characters
 -spec strip_b64(binary()) -> binary().
 strip_b64(BS) ->
-  binary:list_to_bin(binary:split(BS, [<<"\n">>, <<"=">>], [global])).
+  binary:list_to_bin(binary:split(BS, [<<"\n">>, <<"=">>, <<"/">>, <<"+">>], [global])).
