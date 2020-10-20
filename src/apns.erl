@@ -156,7 +156,7 @@ generate_token(TeamId, KeyId, ProjectName) when is_binary(ProjectName) ->
 generate_token(TeamId, KeyId, KeyPath) when is_list(KeyPath)->
   Algorithm = <<"ES256">>,
   Header = jsx:encode([ {alg, Algorithm}
-                      , {typ, <<"JWT">>}
+%%                      , {typ, <<"JWT">>}
                       , {kid, KeyId}
                       ]),
   Payload = jsx:encode([ {iss, TeamId}
